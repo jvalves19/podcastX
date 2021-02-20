@@ -56,7 +56,6 @@ app.post('/scream', (req, res) => {
             res.status(500).json({ error: 'Algo de Errado não está certo' });
             console.error(err);
         });
-        
 });
 
 //Rota de Signup
