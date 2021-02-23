@@ -14,7 +14,6 @@ const config = {
 };
 
 const firebase = require('firebase');
-const { object } = require("firebase-functions/lib/providers/storage");
 firebase.initializeApp(config);
 
 const db = admin.firestore();
@@ -40,10 +39,43 @@ app.get('/screams', (req, res) => {
     .catch((err) => console.error(err));
 });
 
-app.post('/scream', (req, res) => {
+const FBAuth = (req, res, next) => {
+    let idToken;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')){
+        idToken = req.headers.authorization.split('Bearer ')[1];
+    }   else {
+        console.error('Token não encontrado');
+        return res.status(403).json({ error: 'Não Autorizado' });
+    }
+
+    admin.auth().verifyIdToken(idToken)
+        .then(decodedToken => {
+            req.user = decodedToken;
+            console.log(decodedToken);
+            return db.collection('users')
+                .where('userId', '==', req.user.uid)
+                .limit(1)
+                .get();
+        })
+        .then(data => {
+            req.user.handle = data.docs[0].data().handle;
+            return next();
+        })
+        .catch(err => {
+            console.error('Erro durante a verificação do Token', err);
+            return res.status(403).json(err);
+        })
+}
+
+//Rota de Scream
+app.post('/scream', FBAuth, (req, res) => {
+    if(req.body.body.trim() === ''){
+        return res.status(400).json({ body: 'Campo não pode estar vazio' });
+    }
+
     const newScream = {
         body: req.body.body,
-        userHandle: req.body.userHandle,
+        userHandle: req.user.handle,
         createdAt: new Date().toISOString()
     };
 
@@ -71,7 +103,6 @@ const isEmpty = (string) => {
     if(string.trim() === '') return true;
     else return false;
 }
-
 
 //Rota de Signup
 app.post('/signup', (req, res) => {
