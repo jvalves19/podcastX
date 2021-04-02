@@ -45,7 +45,7 @@ exports.signup = (req, res) => {
                 handle: newUser.handle,
                 email: newUser.email,
                 createdAt: new Date().toISOString(),
-                imageUrl: `htpps://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${noImg}?alt=media`,
+                imageUrl: `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${noImg}?alt=media`,
                 userId
             };
             return db.doc(`/users/${newUser.handle}`).set(userCredentials);
@@ -58,7 +58,7 @@ exports.signup = (req, res) => {
             if(err.code === 'auth/email-already-in-use'){
                 return res.status(400).json({ email: 'Email já está sendo usado' });
             }   else{
-                return res.status(500).json({ error: err.code });
+                return res.status(500).json({ general: "Algo de errado aqui. Tente novamente" });
             }            
         });
 }
@@ -82,12 +82,10 @@ exports.login = (req, res) => {
             return res.json({ token });
         })
         .catch(err => {
-            console.log(err);
-            if(err.code === 'auth/wrong-password') {
+            console.error(err);
                 return res.status(403).json({ general: 'Credenciais Incorretas'});
-            }   else return res.status(500).json({ error: err.code });
         });
-}
+};
 
 //Adicionando detalhes ao usuario
 exports.addUserDetails = (req, res) => {
@@ -214,7 +212,7 @@ exports.uploadImage = (req, res) => {
             }
         })
         .then(() => {
-            const imageUrl = `htpps://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${imageFileName}?alt=media`;
+            const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${imageFileName}?alt=media`;
             return db.doc(`/users/${req.user.handle}`).update({ imageUrl });
         })
         .then(() => {
