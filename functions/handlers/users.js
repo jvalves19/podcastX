@@ -61,7 +61,7 @@ exports.signup = (req, res) => {
                 return res.status(500).json({ general: "Algo de errado aqui. Tente novamente" });
             }            
         });
-}
+};
 
 exports.login = (req, res) => {
     const user = {
@@ -134,7 +134,7 @@ exports.getUserDetails = (req, res) => {
           console.error(err);
           return res.status(500).json({ error: err.code });
       })
-}
+};
 
 //Get detalhes do Usuário
 exports.getAuthenticatedUser = (req, res) => {
@@ -174,7 +174,7 @@ exports.getAuthenticatedUser = (req, res) => {
             console.error(err);
             return res.status(500).json({ error: err.code });
         })
-}
+};
 
 //Upload de imagem do usuario
 exports.uploadImage = (req, res) => {
@@ -194,8 +194,7 @@ exports.uploadImage = (req, res) => {
         }
         //img.png
         const imageExtension = filename.split('.')[filename.split('.').length - 1];
-        
-        imageFileName = `${Math.round(Math.random() * 10000000)}.${imageExtension}`;
+        const imageFileName = `${Math.round(Math.random() * 10000000)}.${imageExtension}`;
         const filePath = path.join(os.tmpdir(), imageFileName);
         imageToBeUploaded = { filePath, mimetype };
 
