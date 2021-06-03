@@ -1,4 +1,3 @@
-
 module.exports = {
     apiKey: "AIzaSyA7qd4vEFeKYFX0tlMJXJ5VbdsNaQSqTDY",
     authDomain: "podcastx-tcc.firebaseapp.com",
