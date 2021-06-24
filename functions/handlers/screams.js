@@ -7,15 +7,16 @@ exports.getAllScreams = (req, res) => {
     .then((data) => {
         let screams = [];
         data.forEach((doc) => {
-        screams.push({
-            screamId: doc.id,
-            body: doc.data().body,
-            userHandle: doc.data().userHandle,
-            createdAt: doc.data().createdAt,
-            commentCount: doc.data().commentCount,
-            likeCount: doc.data().likeCount,
-            userImage: doc.data().userImage
-        });
+            screams.push({
+                screamId: doc.id,
+                body: doc.data().body,
+                userHandle: doc.data().userHandle,
+                userEmail: doc.data().userEmail,
+                createdAt: doc.data().createdAt,
+                commentCount: doc.data().commentCount,
+                likeCount: doc.data().likeCount,
+                userImage: doc.data().userImage
+            });
         });
         return res.json(screams);
     })
@@ -33,6 +34,7 @@ exports.postOneScream = (req, res) => {
     const newScream = {
         body: req.body.body,
         userHandle: req.user.handle,
+        userEmail: req.user.email,
         userImage: req.user.imageUrl,
         createdAt: new Date().toISOString(),
         likeCount: 0,

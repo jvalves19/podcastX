@@ -37,6 +37,17 @@ let db = {
         type: 'like | comment',
         createdAt: '2019-03-15T10:59:52.798Z'
       }
+    ],
+    podcasts: [
+      {
+        body: 'audio.mp3',
+        podcastName: 'First Podcast',
+        userHandle: 'user1',
+        userImage: 'https://firebasestorage.googleapis.com/v0/b/podcastx-tcc.appspot.com/o/5440423.jpg?alt=media',
+        podcastImg: 'https://firebasestorage.googleapis.com/v0/b/podcastx-tcc.appspot.com/o/5440423.jpg?alt=media',
+        likeCount: 5,
+        createdAt: '2019-03-15T10:59:52.798Z'
+      }
     ]
   };
   const userDetails = {

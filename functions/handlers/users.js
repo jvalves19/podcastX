@@ -14,10 +14,10 @@ const {
 
 exports.signup = (req, res) => {
     const newUser = {
+        handle: req.body.handle,
         email: req.body.email,
         password: req.body.password,
         confirmPassword: req.body.confirmPassword,
-        handle: req.body.handle,
     };
     
     const { valid, errors } = validateSignupData(newUser);
