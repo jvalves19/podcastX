@@ -3,69 +3,12 @@ const { db, admin } = require('../util/admin');
 const config = require("../util/config");
 const { uuid } = require("uuidv4");
 
-function uploadPodcast () {
-  const BusBoy = require('busboy');
-  const path = require("path");
-  const os = require("os");
-  const fs = require("fs");
-  
-  const busboy = new BusBoy({ body: req.body });
-  
-  let podcastToBeUploaded = {};
-  let podcastFileName;
-  let generatedToken = uuid();
-  
-  busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
-    if(mimetype !== 'audio/mpeg' && mimetype !=='audio/mp3'){
-      return res.status(400).json({ error: "Tipo de Arquivo não Permitido" });
-    }
-  
-    const audioExtension = filename.split('.')[filename.split(".").length - 1];
-  
-    podcastFileName = `${Math.round(
-      Math.random() * 1000000000000
-    ).toString()}.${audioExtension}`;
-  
-    const filepath = path.join(os.tmpdir(), podcastFileName);
-    podcastToBeUploaded = { filepath, mimetype };
-    file.pipe(fs.createWriteStream(filepath));
-  });
-
-  busboy.on('finish', () => {
-    admin
-      .storage()
-      .bucket()
-      .upload(podcastToBeUploaded.filepath, {
-        resumable: false,
-        metadata: {
-          metadata: {
-            contentType: podcastToBeUploaded.mimetype,
-            firebaseStorageDownloadTokens: generatedToken,
-          },
-        },
-      })
-      .then(() => {
-        // Append token to url
-        const podcastUrl = `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${podcastFileName}?alt=media&token=${generatedToken}`;
-        return db.doc(`/podcasts/${req.body.body}`).update({ podcastUrl });
-      })
-      .then(() => {
-        return res.json({ message: "Podcast postado com Sucesso" });
-      })
-      .catch((err) => {
-        console.error(err);
-        return res.status(500).json({ error: "Algo de Errado Aconteceu" });
-      });
-  });
-  
-  busboy.end(req.rawBody);
-};
-
 exports.createPodcast = (req, res) => {
 
   const newPodcast = {
     podcastUrl: req.body.podcastUrl,
     podcastName: req.body.podcastName,
+    userEmail: req.user.email,
     userHandle: req.user.handle,
     userImage: req.user.imageUrl,
     likeCount: 0,
@@ -96,6 +39,7 @@ exports.getAllPodcasts = (req, res) => {
               podcastId: doc.id,
               podcastUrl: doc.data().podcastUrl,
               podcastName: doc.data().podcastName,
+              userEmail: doc.data().userEmail,
               userHandle: doc.data().userHandle,
               userImage: doc.data().userImage,
               likeCount: doc.data().likeCount,
@@ -137,13 +81,115 @@ exports.getPodcast = (req, res) => {
 };
 
 exports.likePodcast = (req, res) => {
+  const likeDocument = db
+  .collection('likes')
+  .where('userHandle', '==', req.user.handle)
+  .where('podcastId', '==', req.params.podcastId)
+  .limit(1);
 
+const podcastDocument = db.doc(`/podcasts/${req.params.podcastId}`);
+
+let podcastData;
+
+podcastDocument
+  .get()
+  .then((doc) => {
+    if (doc.exists) {
+      podcastData = doc.data();
+      podcastData.podcastId = doc.id;
+      return likeDocument.get();
+    } else {
+      return res.status(404).json({ error: 'Podcast não foi Encontrado' });
+    }
+  })
+  .then((data) => {
+    if (data.empty) {
+      return db
+        .collection('likes')
+        .add({
+          podcastId: req.params.podcastId,
+          userHandle: req.user.handle
+        })
+        .then(() => {
+          podcastData.likeCount++;
+          return podcastDocument.update({ likeCount: podcastData.likeCount });
+        })
+        .then(() => {
+          return res.json(podcastData);
+        });
+    } else {
+      return res.status(400).json({ error: 'Podcast já foi curtido por você' });
+    }
+  })
+  .catch((err) => {
+    console.error(err);
+    res.status(500).json({ error: err.code });
+  });
 };
 
 exports.unlikePodcast = (req, res) => {
+  const likeDocument = db
+  .collection('likes')
+  .where('userHandle', '==', req.user.handle)
+  .where('podcastId', '==', req.params.podcastId)
+  .limit(1);
 
+const podcastDocument = db.doc(`/podcasts/${req.params.podcastId}`);
+
+let podcastData;
+
+podcastDocument
+  .get()
+  .then((doc) => {
+  if (doc.exists) {
+      podcastData = doc.data();
+      podcastData.podcastId = doc.id;
+      return likeDocument.get();
+  } else {
+      return res.status(404).json({ error: 'Podcast não foi Encontrado' });
+  }
+  })
+  .then((data) => {
+  if (data.empty) {
+      return res.status(400).json({ error: 'Você descurtiu este Podcast' });
+  } else {
+      return db
+      .doc(`/likes/${data.docs[0].id}`)
+      .delete()
+      .then(() => {
+          podcastData.likeCount--;
+          return podcastDocument.update({ likeCount: podcastData.likeCount });
+      })
+      .then(() => {
+          res.json(podcastData);
+      });
+  }
+  })
+  .catch((err) => {
+    console.error(err);
+    res.status(500).json({ error: err.code });
+  });
 };
 
 exports.deletePodcast = (req, res) => {
-
+  const document = db.doc(`/podcasts/${req.params.podcastId}`);
+  document
+    .get()
+    .then((doc) => {
+    if (!doc.exists) {
+        return res.status(404).json({ error: 'Podcast não foi Encontrado' });
+    }
+    if (doc.data().userHandle !== req.user.handle) {
+        return res.status(403).json({ error: 'NÃO AUTORIZADO' });
+    } else {
+        return document.delete();
+    }
+    })
+    .then(() => {
+      res.json({ message: 'Podcast deletado com Sucesso' });
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(500).json({ error: err.code });
+    });
 };

@@ -7,16 +7,6 @@ app.use(cors());
 
 const { db } = require('./util/admin');
 
-//Screams
-const {
-    postOneScream,
-    getAllScreams,
-    getScream,
-    commentOnScream,
-    likeScream,
-    unlikeScream,
-    deleteScream
-} = require('./handlers/screams');
 //Users
 const {
     signup,
@@ -38,19 +28,13 @@ const {
     deletePodcast
 } = require('./handlers/podcasts');
 
-// Rotas de Screams
-app.post('/scream', FBAuth, postOneScream);
-app.get('/screams', getAllScreams);
-app.get('/scream/:screamId', getScream);
-app.delete('/scream/:screamId', FBAuth, deleteScream);
-app.get('/scream/:screamId/like', FBAuth, likeScream);
-app.get('/scream/:screamId/unlike', FBAuth, unlikeScream);
-app.post('/scream/:screamId/comment', FBAuth, commentOnScream);
-
 // Rotas de Podcasts
 app.post('/podcast', FBAuth, createPodcast),
 app.get('/podcasts', getAllPodcasts);
 app.get('/podcast/:podcastId', getPodcast);
+app.delete('/podcast/:podcastId', FBAuth, deletePodcast);
+app.get('/podcast/:podcastId/like', FBAuth, likePodcast);
+app.get('/podcast/:podcastId/unlike', FBAuth, unlikePodcast);
 
 // Rotas de Usuários
 app.post('/signup', signup);
@@ -67,7 +51,7 @@ exports.api = functions.https.onRequest(app);
 exports.createNotificationOnLike = functions.firestore.document('likes/{id}')
 .onCreate((snapshot) => {
     return db
-        .doc(`/screams/${snapshot.data().screamId}`)
+        .doc(`/podcasts/${snapshot.data().podcastId}`)
         .get()
         .then((doc) => {
         if (
@@ -75,12 +59,12 @@ exports.createNotificationOnLike = functions.firestore.document('likes/{id}')
             doc.data().userHandle !== snapshot.data().userHandle
         ) {
             return db.doc(`/notifications/${snapshot.id}`).set({
-            createdAt: new Date().toISOString(),
-            recipient: doc.data().userHandle,
-            sender: snapshot.data().userHandle,
-            type: 'like',
-            read: false,
-            screamId: doc.id
+                createdAt: new Date().toISOString(),
+                recipient: doc.data().userHandle,
+                sender: snapshot.data().userHandle,
+                type: 'like',
+                read: false,
+                podcastId: doc.id
             });
         }
         })
@@ -98,60 +82,34 @@ exports.deleteNotificationOnUnlike = functions.firestore.document('likes/{id}')
     });
 });
 
-exports.createNotificationOnComment = functions.firestore.document('comments/{id}')
-.onCreate((snapshot) => {
-    return db
-        .doc(`/screams/${snapshot.data().screamId}`)
-        .get()
-        .then((doc) => {
-            if (
-                doc.exists &&
-                doc.data().userHandle !== snapshot.data().userHandle
-            ) {
-                return db.doc(`/notifications/${snapshot.id}`).set({
-                    createdAt: new Date().toISOString(),
-                    recipient: doc.data().userHandle,
-                    sender: snapshot.data().userHandle,
-                    type: 'comment',
-                    read: false,
-                    screamId: doc.id
-                });
-            }
-        })
-    .catch((err) => {
-        console.error(err);
-        return;
-    });
-});
-
 exports.onUserImageChange = functions.firestore.document('/users/{userId}')
 .onUpdate((change) => {
     console.log(change.before.data());
     console.log(change.after.data());
     if (change.before.data().imageUrl !== change.after.data().imageUrl) {
-        console.log('image has changed');
+        console.log('Imagem Alterada');
         const batch = db.batch();
         return db
-        .collection('screams')
+        .collection('podcasts')
         .where('userHandle', '==', change.before.data().handle)
         .get()
         .then((data) => {
             data.forEach((doc) => {
-            const scream = db.doc(`/screams/${doc.id}`);
-            batch.update(scream, { userImage: change.after.data().imageUrl });
+            const podcast = db.doc(`/podcasts/${doc.id}`);
+            batch.update(podcast, { userImage: change.after.data().imageUrl });
             });
             return batch.commit();
         });
     } else return true;
 });
 
-exports.onScreamDelete = functions.firestore.document('/screams/{screamId}')
+exports.onPodcastDelete = functions.firestore.document('/podcasts/{podcastId}')
 .onDelete((snapshot, context) => {
-    const screamId = context.params.screamId;
+    const podcastId = context.params.podcastId;
     const batch = db.batch();
     return db
         .collection('comments')
-        .where('screamId', '==', screamId)
+        .where('podcastId', '==', podcastId)
         .get()
         .then((data) => {
         data.forEach((doc) => {
@@ -159,7 +117,7 @@ exports.onScreamDelete = functions.firestore.document('/screams/{screamId}')
         });
         return db
             .collection('likes')
-            .where('screamId', '==', screamId)
+            .where('podcastId', '==', podcastId)
             .get();
         })
         .then((data) => {
@@ -168,14 +126,14 @@ exports.onScreamDelete = functions.firestore.document('/screams/{screamId}')
         });
         return db
             .collection('notifications')
-            .where('screamId', '==', screamId)
+            .where('podcastId', '==', podcastId)
             .get();
         })
         .then((data) => {
-        data.forEach((doc) => {
-            batch.delete(db.doc(`/notifications/${doc.id}`));
-        });
-        return batch.commit();
+            data.forEach((doc) => {
+                batch.delete(db.doc(`/notifications/${doc.id}`));
+            });
+            return batch.commit();
         })
         .catch((err) => console.error(err));
 });
